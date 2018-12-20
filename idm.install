@@ -1,0 +1,126 @@
+Installing IDM
+Skip to end of metadata
+Created by Yaniv Ron, last modified by Nathan Lacey on Dec 06, 2018
+Go to start of metadata
+This article will provide information on how to install IDM
+
+Step-by-step guide
+Prerequisites :
+
+Hardware Recommendations
+
+RAM is the most important hardware feature to size properly. To determine how much RAM you require, consider these recommendations:
+
+
+
+For 10,000 users and 100 groups: at least 2 GB of RAM and 1 GB swap space
+
+For 100,000 users and 50,000 groups: at least 16 GB of RAM and 4 GB of swap space
+
+Download the latest red hat version from red-hat website (for a new server please create a purchase request).
+    2. Register the IDM machine by using:
+       # subscription-manager register --username <username> --password <password> --auto-attach
+    3. update the OS by running :
+       # yum update
+    4. run the ipa-server installation as follows: 
+       # yum install ipa-server <ipa-server-dns> - please consult with the IT before running the "ipa-server-dns" option.
+
+    5. Verify that /etc/hosts must be with IPv6 and 4 :
+                    # 127.0.0.1	localhost.localdomain	localhost
+                    # ::1		localhost6.localdomain6	localhost6
+                    # 192.0.2.1	server.example.com	IDM
+                    # 2001:DB8::1111	server.example.com	IDM
+                                                     # Run the dig +short server.example.com A command. The returned IPv4 address must match the IP address returned by ip addr show:
+
+                                                     # [root@server ~]# dig +short server.example.com A
+
+                                                     #192.0.2.1
+
+                                                     # Run the dig +short server.example.com AAAA command. If the command returns an address, it must match the IPv6 address returned by ip addr show:
+
+                                                      #[root@server ~]# dig +short server.example.com AAAA
+
+                                                      #2001:DB8::1111
+
+
+      6. Verify the reverse DNS configuration (PTR records) by using the dig utility and adding the IP address
+      7. Run the dig +short -x IPv4 address command. The server host name must be displayed in the command output. For example:
+      8. [root@server ~]# dig +short -x 192.0.2.1
+ # server.example.com
+      9. Use dig to query the IPv6 address as well if the dig +short -x server.example.comAAAA command in the previous step returned an IPv6 address. Again, the server host name must be displayed in the command output. For example:
+      10. [root@server ~]# dig +short -x 2001:DB8::1111
+ server.example.com
+
+If a different host name or no host name is displayed, even though dig +short server.example.com in the previous step returned an IP address, it indicates that the reverse DNS configuration is incorrect.
+Verifying the Standards-compliance of DNS Forwarders
+When configuring IdM with integrated DNS, verify that all DNS forwarders you want to use with the IdM DNS server comply with the Extension Mechanisms for DNS (EDNS0) and DNS Security Extensions (DNSSEC) standards. To do this, inspect the output of the following command for each forwarder separately:
+
+$ dig +dnssec @IP_address_of_the_DNS_forwarder . SOA
+
+The expected output displayed by the command contains the following information:
+status: NOERROR
+
+flags: ra
+
+EDNS flags: do
+
+The RRSIG record must be present in the ANSWER section
+
+If any of these items is missing from the output go here :
+https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/7/html/linux_domain_identity_authentication_and_policy_guide/installing-ipa#server-hw-recomendations
+
+1) run ipa-install with the option of dos (--setup dns --auto-reverse --forwarder --forward-policy forward first) or plain install and answer :
+
+Do you want to configure integrated DNS (BIND)? [no]: yes
+The script prompts to check if any DNS reverse (PTR) records for the IP addresses associated with the server need to be configured.
+Do you want to search for missing reverse zones? [yes]:
+If you run the search and missing reverse zones are discovered, the script asks you whether to create the reverse zones along with the PTR records. 
+Do you want to create reverse zone for IP 192.0.2.1 [yes]: 
+Please specify the reverse zone name [2.0.192.in-addr.arpa.]: 
+Using reverse zone(s) 2.0.192.in-addr.arpa.
+Important
+This step must be repeated each time an IdM DNS server is installed.
+
+2) enable forwarders to send packets onwards to the internal DNS and then to 8.8.8.8 with a policy = Forward first.
+
+it is possible to use the command line or the gui , see this page for more info : 
+https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/7/html/linux_domain_identity_authentication_and_policy_guide/managing-dns-forwarding)
+
+
+DNS Forwarders : 
+https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/7/html/linux_domain_identity_authentication_and_policy_guide/managing-dns-forwarding
+Disable NSCD (similar to SSSD and will affect its functionality)
+IPv6 is a must ! and must be installed within the system.
+
+
+Recursive and Authorative name query 
+
+https://umbrella.cisco.com/blog/2014/07/16/difference-authoritative-recursive-dns-nameservers/
+
+https://technet.microsoft.com/en-us/library/cc961401.aspx
+
+
+
+prevent DNS amplification attacks :
+https://www.us-cert.gov/ncas/alerts/TA13-088A
+
+
+
+Firewall on Redhat :
+https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/7/html/linux_domain_identity_authentication_and_policy_guide/installing-ipa#prereq-ports
+
+# firewall-cmd --permanent --add-port={80/tcp,443/tcp,389/tcp,636/tcp,88/tcp,464/tcp,88/udp,464/udp,53/tcp,53/udp,123/udp}
+
+firewall-cmd --reload
+
+
+Please note : 
+reload command will cause timeouts in the network!
+
+It is recommended not to open 8080, 8443, and 749 (keep the Block they will be used only internally by the IDM).
+
+ back up the CA certificate!!!!
+
+Performance tuning :
+
+https://access.redhat.com/documentation/en-us/red_hat_directory_server/10/html/performance_tuning_guide/system-tuning
